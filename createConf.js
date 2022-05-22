@@ -6,7 +6,7 @@ export default async function() {
 	const nodeDir = '/Users/giulio/dev/algorand/privateBetaNet/Node';
 
 	const kmdDir = nodeDir + '/'
-		+ fs.readdirSync(nodeDir).filter(d => d.match(new RegExp(`^kmd-v*`)))[0];
+		+ readdirSync(nodeDir).filter(d => d.match(new RegExp(`^kmd-v*`)))[0];
 	const kmdToken = execSync("cat kmd.token", { cwd : kmdDir}).toString();
 	const kmd = new algosdk.Kmd(kmdToken);
 
@@ -28,5 +28,5 @@ export default async function() {
 		addresses,
 	}
 
-	fs.writeFileSync('./conf.json', JSON.stringify(conf));
+	writeFileSync('./conf.json', JSON.stringify(conf));
 }

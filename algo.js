@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import algosdk from 'algosdk';
 
-export {conf, algod, kmd, utils};
+export {conf, algod, kmd, utils, algosdk};
 
-if (! fs.existsSync("./conf.json"))
-	createConf();
+if (! fs.existsSync('./conf.json'))
+	await createConf();
 
 const conf = JSON.parse(fs.readFileSync('./conf.json'));
 const algod = new algosdk.Algodv2(conf.algodToken, conf.server, conf.algodPort);
