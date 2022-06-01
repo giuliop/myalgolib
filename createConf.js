@@ -2,7 +2,16 @@ import algosdk from 'algosdk';
 import { readdirSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
-export default async function() {
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const confPath = path.join(__dirname, 'conf.json');
+console.log(confPath);
+
+export async function createConfFile() {
 	const nodeDir = '/Users/giulio/dev/algorand/privateBetaNet/Node';
 
 	const kmdDir = nodeDir + '/'
@@ -34,5 +43,5 @@ export default async function() {
 		accounts
 	}
 
-	writeFileSync('./conf.json', JSON.stringify(conf));
+	writeFileSync(confPath, JSON.stringify(conf));
 }

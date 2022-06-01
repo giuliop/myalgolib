@@ -1,14 +1,19 @@
-import createConf from './createConf.js'
+import { confPath, createConfFile } from './createConf.js'
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import algosdk from 'algosdk';
 
-export {conf, algod, kmd, utils, algosdk};
+export { conf, algod, kmd, utils, algosdk };
 
-if (! fs.existsSync('./conf.json'))
-	await createConf();
+if (! fs.existsSync(confPath))
+	await createConfFile();
 
-const conf = JSON.parse(fs.readFileSync('./conf.json'));
+const conf = JSON.parse(fs.readFileSync(confPath));
+// secret keys need to be manually converted to buffer and uint8array
+for (let a of conf.accounts) {
+	a.sk = new Uint8Array(Buffer.from(a.sk.data));
+}
+
 const algod = new algosdk.Algodv2(conf.algodToken, conf.server, conf.algodPort);
 const kmd = new algosdk.Kmd(conf.kmdToken);
 
@@ -18,7 +23,9 @@ const utils = {
 	signWithKmd,
 	sendAndConfirm,
 	signWithKmdSendAndConfirm,
-	fund
+	signWithSkSendAndConfirm,
+	fund,
+	createDryrunDumpFile
 }
 
 // Fund the provided address with the provided numner of algo from an account
@@ -31,7 +38,8 @@ async function fund(address, algo) {
 			suggestedParams : await algod.getTransactionParams().do()
 		});
 
-	return await signWithKmdSendAndConfirm(txn);
+	await signWithKmdSendAndConfirm(txn);
+	console.log(`Funded address ${address} with ${algo} algo \n`);
 }
 
 // Compile a file of teal code and return the compiled blob and the hash
@@ -71,7 +79,7 @@ function stopKmd() {
 
 // Take a txn and optionally the address what need to sign it (needed for rekeyed
 // accounts), sign it wiwh Kmd and return the signed transaction
-async function signWithKmd(txn, signingAddress) {
+async function signWithKmd(txn, signingAddress = null) {
 	let signedTxn;
 	startKmd(5);
 
@@ -96,10 +104,18 @@ async function signWithKmd(txn, signingAddress) {
 async function sendAndConfirm(signedTxn, txId) {
 	await algod.sendRawTransaction(signedTxn).do();
 	const confirmedTxn = await algosdk.waitForConfirmation(algod, txId, 4);
-	console.log("Transaction " + txId + " confirmed in round "
-		+ confirmedTxn["confirmed-round"]);
+	console.log("\nTransaction " + txId + " confirmed in round "
+		+ confirmedTxn["confirmed-round"] +"\n");
 	const txnResponse = await algod.pendingTransactionInformation(txId).do();
 	return txnResponse;
+}
+
+// Take a txn and o secrey key, sign, send to the blockchain, await confirmation
+// and return the response
+async function signWithSkSendAndConfirm(txn, sk) {
+	const {blob, txID} = algosdk.signTransaction(txn, sk);
+	const resp = await utils.sendAndConfirm(blob, txID);
+	return resp;
 }
 
 // Take a txn and optionally the address what need to sign it (needed for rekeyed
@@ -110,4 +126,16 @@ async function signWithKmdSendAndConfirm(txn, signingAddress = null) {
 	const signedTxn = await signWithKmd(txn, signingAddress);
 	const resp = await sendAndConfirm(signedTxn, txId);
 	return resp;
+}
+
+async function createDryrunDumpFile(app_txn, sk) {
+	const s_app_txn = algosdk.signTransaction(app_txn, sk)
+	const drr = await algosdk.createDryrun({
+		client: algod,
+		txns: [ algosdk.decodeSignedTransaction(s_app_txn['blob'])]
+	});
+
+	const filename = 'dryrun.msgp';
+	fs.writeFileSync(filename,
+		algosdk.encodeObj(drr.get_obj_for_encoding(true)));
 }
