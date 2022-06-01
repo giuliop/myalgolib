@@ -14,6 +14,11 @@ export default async function() {
 	const walletId = (await kmd.listWallets()).wallets[0].id;
 	const walletHandle = (await kmd.initWalletHandle(walletId)).wallet_handle_token;
 	const addresses = (await kmd.listKeys(walletHandle)).addresses;
+	const accounts = [];
+	for (const address of addresses) {
+		const sk = (await kmd.exportKey(walletHandle, "", address)).private_key;
+		accounts.push({address, sk});
+	}
 	kmd.releaseWalletHandle(walletHandle);
 
 	const conf = {
@@ -26,6 +31,7 @@ export default async function() {
 		kmdToken,
 		walletId,
 		addresses,
+		accounts
 	}
 
 	writeFileSync('./conf.json', JSON.stringify(conf));
